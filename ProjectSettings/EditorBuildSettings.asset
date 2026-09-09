@@ -9,7 +9,16 @@ EditorBuildSettings:
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
+    path: Assets/Scenes/startScreen.unity
+    guid: d57009ef6dec2c041b0dd942f6c5286d
+  - enabled: 1
+    path: Assets/Scenes/preferences.unity
+    guid: 9226053bf9a34034db7d12f7decce447
+  - enabled: 1
     path: Assets/Scenes/chapterCards.unity
     guid: 7e02be763dac4c8489405059d06c99c5
+  - enabled: 1
+    path: Assets/Scenes/exitScreen.unity
+    guid: 6ef0293c14fcfe241841a0313bb68042
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

@@ -2,10 +2,10 @@ using UnityEngine;
 
 public class Tile : MonoBehaviour
 {
-    private bool tileRevealed = false; 
+    public int cardPairID; // Stores the pair index to avoid relying on Unity Tags
+    private bool tileRevealed = false;
     public Sprite originalSprite;
     public Sprite hiddenSprite;
-
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -16,8 +16,9 @@ public class Tile : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
     }
+
     public void OnMouseDown()
     {
         if (tileRevealed) return;
@@ -38,15 +39,21 @@ public class Tile : MonoBehaviour
 
         gameManager.CardSelected(gameObject);
     }
-    public void HideCard() 
-    { 
-        GetComponent<SpriteRenderer>().sprite = hiddenSprite; tileRevealed = false; 
+
+    public void HideCard()
+    {
+        GetComponent<SpriteRenderer>().sprite = hiddenSprite;
+        tileRevealed = false;
     }
-    public void RevealCard() 
-    { 
-        GetComponent<SpriteRenderer>().sprite = originalSprite; tileRevealed = true; 
+
+    public void RevealCard()
+    {
+        GetComponent<SpriteRenderer>().sprite = originalSprite;
+        tileRevealed = true;
     }
-    public void SetOriginalSprite(Sprite newSprite) 
-    { originalSprite = newSprite; 
+
+    public void SetOriginalSprite(Sprite newSprite)
+    {
+        originalSprite = newSprite;
     }
 }

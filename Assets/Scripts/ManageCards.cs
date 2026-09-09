@@ -1,44 +1,112 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+using TMPro;
 
 public class ManageCards : MonoBehaviour
 {
     public GameObject card;
-    bool firstCardSelected, secondCardSelected;
-    GameObject card1, card2;
-    string rowForCard1, rowForCard2;
-    bool timerHasStarted;
-    float timer;
-    int nbMatch = 0;
+
+    [Header("Top Bar UI References (TextMeshPro)")]
+    public TextMeshProUGUI playerNameText;
+    public TextMeshProUGUI timerText;
+    public TextMeshProUGUI matchText;
+
+    private bool firstCardSelected, secondCardSelected;
+    private GameObject card1, card2;
+
+    private bool cardMismatchTimerActive;
+    private float cardMismatchTimer;
+
+    private int nbMatch = 0;
+    private int totalPairs;
+
+    private float remainingTime;
+    private bool isGameActive = true;
+    private string playerName;
+
+    private readonly string[] suits = { "hearts", "diamonds", "clubs", "spades" };
+    private readonly string[] cardValues = { "ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen", "king" };
 
     void Start()
     {
+        playerName = PlayerPrefs.GetString("PlayerName", "Player 1");
+        if (playerNameText != null)
+        {
+            playerNameText.text = "Player: " + playerName;
+        }
+
+        totalPairs = PlayerPrefs.GetInt("SelectedPairCount", 10);
+        remainingTime = PlayerPrefs.GetFloat("SelectedTimeLimit", 120f);
+
+        if (matchText != null)
+        {
+            matchText.text = "Matches: 0/" + totalPairs;
+        }
+
         DisplayCards();
     }
 
     void Update()
     {
-        if (timerHasStarted)
-        {
-            timer += Time.deltaTime;
+        if (!isGameActive) return;
 
-            if (timer >= 1f)
+        HandleGameTimer();
+        HandleCardMismatchTimer();
+    }
+
+    private void HandleGameTimer()
+    {
+        remainingTime -= Time.deltaTime;
+
+        if (timerText != null)
+        {
+            timerText.text = "Time Left: " + Mathf.CeilToInt(remainingTime) + "s";
+        }
+
+        if (remainingTime <= 0)
+        {
+            remainingTime = 0;
+            GameOver(false);
+        }
+    }
+
+    private void HandleCardMismatchTimer()
+    {
+        if (cardMismatchTimerActive)
+        {
+            cardMismatchTimer += Time.deltaTime;
+
+            if (cardMismatchTimer >= 1f)
             {
-                timerHasStarted = false;
+                cardMismatchTimerActive = false;
 
                 if (card1 != null && card2 != null)
                 {
-                    if (card1.tag == card2.tag)
+                    Tile tile1 = card1.GetComponent<Tile>();
+                    Tile tile2 = card2.GetComponent<Tile>();
+
+                    // Check if both tiles exist and match using cardPairID
+                    if (tile1 != null && tile2 != null && tile1.cardPairID == tile2.cardPairID)
                     {
                         Destroy(card1);
                         Destroy(card2);
                         nbMatch++;
-                        if (nbMatch == 10) SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+
+                        if (matchText != null)
+                        {
+                            matchText.text = "Matches: " + nbMatch + "/" + totalPairs;
+                        }
+
+                        if (nbMatch >= totalPairs)
+                        {
+                            GameOver(true);
+                        }
                     }
                     else
                     {
-                        card1.GetComponent<Tile>().HideCard();
-                        card2.GetComponent<Tile>().HideCard();
+                        if (tile1 != null) tile1.HideCard();
+                        if (tile2 != null) tile2.HideCard();
                     }
                 }
 
@@ -46,102 +114,126 @@ public class ManageCards : MonoBehaviour
                 secondCardSelected = false;
                 card1 = null;
                 card2 = null;
-                rowForCard1 = "";
-                rowForCard2 = "";
-                timer = 0;
+                cardMismatchTimer = 0;
             }
         }
     }
 
-    public void DisplayCards()
+    public void StopGameEarly()
     {
-        int[] shuffledArray1 = CreateShuffledArray();
-        int[] shuffledArray2 = CreateShuffledArray();
-
-        for (int i = 0; i < 10; i++)
-        {
-            AddACard(0, i, shuffledArray1[i]);
-            AddACard(1, i, shuffledArray2[i]);
-        }
+        GameOver(false);
     }
 
-    void AddACard(int row, int rank, int value)
+    public void DisplayCards()
     {
+        List<string> selectedCardNames = GenerateRandomCardPool(totalPairs);
+
+        List<int> deckIndices = new List<int>();
+        for (int i = 0; i < totalPairs; i++)
+        {
+            deckIndices.Add(i);
+            deckIndices.Add(i);
+        }
+        ShuffleList(deckIndices);
+
+        int columns = (totalPairs >= 15) ? 10 : (totalPairs >= 12 ? 8 : 10);
+        int rows = Mathf.CeilToInt((totalPairs * 2.0f) / columns);
+
         float cardOriginalScale = card.transform.localScale.x;
         float scaleFactor = (500 * cardOriginalScale) / 100.0f;
         float yScaleFactor = (725 * cardOriginalScale) / 100.0f;
 
         GameObject cen = GameObject.Find("centerOfScreen");
-
-        Vector3 newPosition = new Vector3(
-            cen.transform.position.x + ((rank - 4.5f) * scaleFactor),
-            cen.transform.position.y + ((row - 0.5f) * yScaleFactor),
-            cen.transform.position.z
-        );
-
-        GameObject c = Instantiate(card, newPosition, Quaternion.identity);
-        c.tag = "" + (value + 1);
-        c.name = row + "_" + value;
-
-        string cardNumber = (value == 0) ? "ace" : "" + (value + 1);
-        string nameOfCard = cardNumber + "_of_hearts";
-
-        Sprite s1 = Resources.Load<Sprite>(nameOfCard);
-
-        if (c.TryGetComponent<Tile>(out Tile tileComponent))
+        if (cen == null)
         {
-            tileComponent.SetOriginalSprite(s1);
-        }
-    }
-
-    public int[] CreateShuffledArray()
-    {
-        int[] newArray = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-
-        for (int t = 0; t < newArray.Length; t++)
-        {
-            int tmp = newArray[t];
-            int r = Random.Range(t, newArray.Length);
-            newArray[t] = newArray[r];
-            newArray[r] = tmp;
+            Debug.LogError("GameObject 'centerOfScreen' missing from scene!");
+            return;
         }
 
-        return newArray;
-    }
-
-    public void CardSelected(GameObject card)
-    {
-        if (timerHasStarted || card == card1) return;
-
-        if (!firstCardSelected)
+        for (int i = 0; i < deckIndices.Count; i++)
         {
-            string row = card.name.Substring(0, 1);
-            rowForCard1 = row;
-            firstCardSelected = true;
-            card1 = card;
-            card1.GetComponent<Tile>().RevealCard();
-        }
-        else if (!secondCardSelected)
-        {
-            string row = card.name.Substring(0, 1);
-            rowForCard2 = row;
-            if (rowForCard2 != rowForCard1)
+            int row = i / columns;
+            int col = i % columns;
+
+            Vector3 newPosition = new Vector3(
+                cen.transform.position.x + ((col - (columns - 1) / 2.0f) * scaleFactor),
+                cen.transform.position.y + ((row - (rows - 1) / 2.0f) * yScaleFactor),
+                cen.transform.position.z
+            );
+
+            int pairID = deckIndices[i];
+            GameObject c = Instantiate(card, newPosition, Quaternion.identity);
+            c.name = row + "_" + col;
+
+            Sprite cardSprite = Resources.Load<Sprite>(selectedCardNames[pairID]);
+
+            if (c.TryGetComponent<Tile>(out Tile tileComponent))
             {
-                card2 = card;
-                secondCardSelected = true;
-                card2.GetComponent<Tile>().RevealCard();
-                CheckCards();
+                tileComponent.cardPairID = pairID; // Sets unique pair identifier
+                tileComponent.SetOriginalSprite(cardSprite);
             }
         }
     }
 
-    public void CheckCards()
+    private List<string> GenerateRandomCardPool(int countNeeded)
     {
-        RunTimer();
+        List<string> fullDeck = new List<string>();
+
+        foreach (string suit in suits)
+        {
+            foreach (string val in cardValues)
+            {
+                fullDeck.Add(val + "_of_" + suit);
+            }
+        }
+
+        ShuffleList(fullDeck);
+        return fullDeck.GetRange(0, countNeeded);
     }
 
-    public void RunTimer()
+    private void ShuffleList<T>(List<T> list)
     {
-        timerHasStarted = true;
+        for (int i = 0; i < list.Count; i++)
+        {
+            T temp = list[i];
+            int randomIndex = Random.Range(i, list.Count);
+            list[i] = list[randomIndex];
+            list[randomIndex] = temp;
+        }
+    }
+
+    public void CardSelected(GameObject cardObj)
+    {
+        if (!isGameActive || cardMismatchTimerActive || cardObj == card1) return;
+
+        if (!firstCardSelected)
+        {
+            firstCardSelected = true;
+            card1 = cardObj;
+            if (card1.TryGetComponent<Tile>(out Tile t1)) t1.RevealCard();
+        }
+        else if (!secondCardSelected)
+        {
+            card2 = cardObj;
+            secondCardSelected = true;
+            if (card2.TryGetComponent<Tile>(out Tile t2)) t2.RevealCard();
+            cardMismatchTimerActive = true;
+        }
+    }
+
+    private void GameOver(bool hasWon)
+    {
+        isGameActive = false;
+
+        int score = (nbMatch * 100) + (hasWon ? Mathf.CeilToInt(remainingTime) * 10 : 0);
+
+        PlayerPrefs.SetInt("HasWonGame", hasWon ? 1 : 0);
+        PlayerPrefs.SetInt("FinalMatches", nbMatch);
+        PlayerPrefs.SetInt("TotalPairs", totalPairs);
+        PlayerPrefs.SetFloat("FinalTimeRemaining", remainingTime);
+        PlayerPrefs.SetInt("CurrentSessionScore", score);
+        PlayerPrefs.Save();
+
+        SceneManager.LoadScene("exitScreen");
     }
 }
